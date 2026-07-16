@@ -43,4 +43,19 @@ jobs:
           tag: bucket-windows-x64
           artifacts: "windows-x64-yosys.tgz"
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get run date
+        id: date
+        run: echo "date=$(date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+      - uses: ncipollo/release-action@v1
+        if: hashFiles('windows-x64-yosys.tgz') != ''
+        with:
+          allowUpdates: True
+          prerelease: True
+          omitBody: True
+          omitBodyDuringUpdate: True
+          omitNameDuringUpdate: True
+          tag: "release-${{ steps.date.outputs.date }}"
+          name: "Release ${{ steps.date.outputs.date }}"
+          artifacts: "windows-x64-yosys.tgz"
+          token: ${{ secrets.GITHUB_TOKEN }}
 
