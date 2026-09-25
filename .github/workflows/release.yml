@@ -1,0 +1,145 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Comma-separated OSS CAD Suite targets"
+        required: true
+        default: "yosys"
+      systems:
+        description: "Comma-separated systems"
+        required: true
+        default: "linux-x64,windows-x64"
+      package:
+        description: "User-facing package name"
+        required: true
+        default: "silicon-oss"
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      systems: ${{ steps.matrix.outputs.systems }}
+    steps:
+      - id: matrix
+        env:
+          SYSTEMS: ${{ inputs.systems }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+
+          systems = [system.strip() for system in os.environ["SYSTEMS"].split(",") if system.strip()]
+          if not systems:
+              raise SystemExit("At least one system is required")
+          print("systems=" + json.dumps(systems))
+          PY
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        system: ${{ fromJSON(needs.prepare.outputs.systems) }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Restore source cache
+        uses: actions/cache@v5
+        with:
+          path: _sources
+          key: "sources-${{ github.run_id }}-${{ matrix.system }}"
+          restore-keys: |
+            sources-
+
+      - name: Restore previous release build cache
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cache="${{ inputs.package }}-cache-${{ matrix.system }}.tgz"
+          restored=false
+
+          while IFS= read -r tag; do
+            if gh release download "${tag}" -p "${cache}"; then
+              tar xzf "${cache}"
+              restored=true
+              break
+            fi
+          done < <(
+            gh release list \
+              --exclude-drafts \
+              --limit 50 \
+              --json tagName \
+              --jq '.[] | select(.tagName | startswith("release-")) | .tagName'
+          )
+
+          if [ "${restored}" = false ]; then
+            echo "No previous build cache found for ${{ matrix.system }}"
+          fi
+
+      - name: Build package and cache
+        shell: bash
+        run: |
+          args=()
+          IFS=',' read -ra targets <<< "${{ inputs.targets }}"
+
+          for target in "${targets[@]}"; do
+            target="${target//[[:space:]]/}"
+            if [ -n "${target}" ]; then
+              args+=(--target "${target}")
+            fi
+          done
+
+          if [ ${#args[@]} -eq 0 ]; then
+            echo "At least one target is required" >&2
+            exit 1
+          fi
+
+          ./builder.py release \
+            --arch "${{ matrix.system }}" \
+            --name "${{ inputs.package }}" \
+            --rules default \
+            "${args[@]}"
+
+      - name: Stage release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: "release-${{ matrix.system }}"
+          path: _artifacts/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Collect release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: _artifacts
+          merge-multiple: true
+
+      - name: Get run date
+        id: date
+        run: echo "date=$(date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish packages and build caches
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          replacesArtifacts: true
+          omitBody: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          tag: "release-${{ steps.date.outputs.date }}"
+          name: "Release ${{ steps.date.outputs.date }}"
+          artifacts: "_artifacts/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
