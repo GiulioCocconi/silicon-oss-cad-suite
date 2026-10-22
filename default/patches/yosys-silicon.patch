@@ -1,0 +1,7 @@
+--- a/passes/CMakeLists.txt
++++ b/passes/CMakeLists.txt
+@@ -9,3 +9,4 @@ add_subdirectory(proc)
+ add_subdirectory(sat)
+ add_subdirectory(techmap)
+ add_subdirectory(tests)
++add_subdirectory(silicon)

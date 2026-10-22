@@ -5,11 +5,20 @@ if [ ${ARCH} == 'linux-x64' ]; then
 else
 	touch Configuration.cmake
 fi
+
+# Add SILICON plugins as yosys native passes
+mkdir -p passes/silicon
+cp "${BUILD_DIR}"/silicon/tools/yosys/*.cpp passes/silicon/
+cp "${BUILD_DIR}"/silicon/tools/yosys/*.pmg passes/silicon/
+
+cp "${PATCHES_DIR}/SILICON_CMakeLists.txt" passes/silicon/CMakeLists.txt 
+
 cmake -C Configuration.cmake -B build . \
 	-DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX} \
 	-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE} \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DSLANG_INCLUDE_TOOLS=ON
+
 cmake --build build -j${NPROC}
 DESTDIR=${OUTPUT_DIR} cmake --install build	--strip
 

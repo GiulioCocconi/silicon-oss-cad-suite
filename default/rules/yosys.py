@@ -54,9 +54,19 @@ SourceLocation(
 	license_file = 'LICENSE',
 )
 
+
+SourceLocation(
+    name='silicon',
+    vcs='git',
+    location='https://github.com/GiulioCocconi/SILICON',
+    revision='origin/main',
+    license_file='LICENSE.md',
+)
+
 Target(
 	name = 'yosys',
-	sources = [ 'yosys'],
+	sources = [ 'yosys', 'silicon' ],
+    patches = [ 'yosys-silicon.patch' ],
 	resources = [ 'xdot', 'graphviz' ],
 	critical = True,
 )

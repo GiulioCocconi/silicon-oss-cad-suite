@@ -1,0 +1,15 @@
+pmgen_command(silicon_import
+    silicon_import.pmg
+)
+
+yosys_pass(silicon_legalize
+    silicon_import.cpp
+    silicon_legalize.cpp
+    silicon_bmux_case.cpp
+    ${PMGEN_silicon_import_OUTPUT}
+    INCLUDE_DIRS
+        ${CMAKE_CURRENT_BINARY_DIR}
+    PROVIDES
+        silicon_import
+        silicon_bmux_case
+)
