@@ -38,9 +38,23 @@ if [ -d "${bundle}/py3bin" ]; then
 fi
 rm -f "${bundle}/win-launcher.exe"
 
+is_mingw_runtime() {
+	case "${1,,}" in
+		libstdc++-6.dll|libgcc_s_*.dll|libwinpthread-1.dll) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
 find_dll() {
 	local name=$1
 	local path
+
+	# Compiler runtimes must come from the image used to build the binaries,
+	# never from a possibly stale copy in a cached target output.
+	if is_mingw_runtime "${name}"; then
+		find "${sysroot}" -maxdepth 1 -type f -iname "${name}" -print -quit
+		return
+	fi
 
 	path=$(find "${bundle}" -type f -iname "${name}" -print -quit)
 	if [ -n "${path}" ]; then
@@ -50,6 +64,16 @@ find_dll() {
 
 	find "${sysroot}" -maxdepth 1 -type f -iname "${name}" -print -quit
 }
+
+# Refresh every existing runtime copy before walking dependencies. Otherwise
+# bundle_closure's existing-file check could retain an older DLL beside an EXE
+# or plugin, even when find_dll resolves to the correct toolchain runtime.
+while IFS= read -r -d '' runtime; do
+	if is_mingw_runtime "$(basename "${runtime}")"; then
+		source=$(find_dll "$(basename "${runtime}")")
+		cp "${source}" "${runtime}"
+	fi
+done < <(find "${bundle}" -type f -iname '*.dll' -print0)
 
 bundle_closure() {
 	local root=$1

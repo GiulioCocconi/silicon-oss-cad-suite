@@ -41,6 +41,8 @@ OUTPUTS_ROOT = "_outputs"
 SCRIPTS_ROOT = "scripts"
 PATCHES_ROOT = "patches"
 RULES_ROOT   = "rules"
+# Keep compilation and runtime deployment on the same cross toolchain.
+CROSS_IMAGE_VERSION = "4.0"
 current_rule_group = ""
 
 def log_warning(msg):
@@ -433,7 +435,7 @@ def executeBuild(target, arch, prefix, build_dir, output_dir, nproc, pack_source
 		else:
 			params += ['-e', '{}={}'.format(i, j)]
 	params += [
-		'yosyshq/cross-'+ arch + ':4.0',
+		'yosyshq/cross-'+ arch + ':' + CROSS_IMAGE_VERSION,
 		'bash', scriptfile.name
 	]
 	return run_live(params, cwd=build_dir)

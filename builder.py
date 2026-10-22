@@ -2,6 +2,7 @@
 
 import click, signal, os, sys, shutil
 from src.base import (
+	CROSS_IMAGE_VERSION,
 	OUTPUTS_ROOT,
 	buildCode,
 	cleanBuild,
@@ -101,7 +102,7 @@ def deployWindows(stage_dir):
 	params += [
 		'-v', '{}:/bundle'.format(os.path.abspath(stage_dir)),
 		'-v', '{}:/src:ro'.format(os.path.abspath('.')),
-		'yosyshq/cross-windows-x64:2.3',
+		'yosyshq/cross-windows-x64:' + CROSS_IMAGE_VERSION,
 		'bash', '/src/scripts/deploy-windows.sh', '/bundle',
 	]
 
